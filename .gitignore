@@ -1,0 +1,13 @@
+# Executables
+*.exe
+*.exe~
+dist/
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Local reference sources
+reference/
