@@ -9,5 +9,8 @@ dist/
 # Output of the go coverage tool
 *.out
 
+# Local config
+config.json
+
 # Local reference sources
 reference/

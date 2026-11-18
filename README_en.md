@@ -31,7 +31,7 @@ The core discovery of directly commanding Bluetooth drivers through the Windows 
 | :--- | :--- | :--- |
 | **Dependencies & Runtime** | Requires Visual Studio, C++/WinRT, NuGet package `wil`, and VC++ redistributables (`msvcp*.dll`) | **Pure Go (Zero CGO)**. No external DLLs, C++ runtimes, or build-time compilers needed. Compiles into a single self-contained `.exe` (~2.3 MB). |
 | **UI Responsiveness** | Synchronous `KsProperty` calls on the window thread — slow driver responses froze the tray menu | **Fully asynchronous**. Connection and disconnection execute in background goroutines; the popup menu closes instantly. |
-| **User Feedback (Notifications)** | None (logs only emitted to `OutputDebugString`) | **Native Windows tray balloons / notifications**. Provides real-time feedback: "Connecting to...", "Connected", "Disconnected", "Error". |
+| **User Feedback (Notifications)** | None (logs only emitted to `OutputDebugString`) | **Native Windows tray balloons / notifications** (can be toggled in menu; persisted to `config.json` next to the executable). |
 | **Connection State Accuracy** | Checked based only on endpoint active state | **Dual-source status verification**. Correlates Win32 Bluetooth API with Core Audio endpoints; connected devices are clearly marked with `✓`. |
 | **Device Support** | Audio endpoints only | **All paired Bluetooth devices**. Audio devices leverage fast Kernel Streaming; non-audio devices fall back to Bluetooth service state management. |
 | **Architectures** | x86 / x64 builds only | **x64 (amd64) and native ARM64** (Snapdragon X Elite, Surface Pro ARM, etc.). |
@@ -66,8 +66,9 @@ Windows does not provide a standard public high-level API to connect Bluetooth a
    * `  Device Name` — device is disconnected (click to connect).
 3. **Refresh List** — rescans Bluetooth devices.
 4. **Bluetooth Settings...** — opens standard Windows Bluetooth settings.
-5. **Start with Windows** — toggles application startup on boot.
-6. **Exit** — quits the program and removes the tray icon.
+5. **Balloon Notifications** — toggles notifications on/off (persisted in `config.json` next to the executable).
+6. **Start with Windows** — toggles application startup on boot.
+7. **Exit** — quits the program and removes the tray icon.
 
 ---
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/internetson/ToothTray-go/pkg/autostart"
 	"github.com/internetson/ToothTray-go/pkg/bluetooth"
+	"github.com/internetson/ToothTray-go/pkg/config"
 
 	"golang.org/x/sys/windows"
 )
@@ -84,8 +85,9 @@ const (
 	ID_DEVICE_BASE = 1000
 	ID_REFRESH     = 2001
 	ID_SETTINGS    = 2002
-	ID_AUTOSTART   = 2003
-	ID_EXIT        = 2004
+	ID_NOTIFS      = 2003
+	ID_AUTOSTART   = 2004
+	ID_EXIT        = 2005
 )
 
 type POINT struct {
@@ -141,6 +143,7 @@ type App struct {
 	hInstance windows.Handle
 	hIcon     windows.Handle
 	btManager *bluetooth.Manager
+	cfg       *config.Config
 }
 
 var globalApp *App
@@ -148,6 +151,7 @@ var globalApp *App
 func NewApp() *App {
 	return &App{
 		btManager: bluetooth.NewManager(),
+		cfg:       config.Load(),
 	}
 }
 
@@ -280,6 +284,9 @@ func (a *App) removeTrayIcon() {
 }
 
 func (a *App) ShowNotification(title, message string, isError bool) {
+	if a.cfg != nil && !a.cfg.IsNotificationsEnabled() {
+		return
+	}
 	var nid NOTIFYICONDATAW
 	nid.CbSize = uint32(unsafe.Sizeof(nid))
 	nid.HWnd = a.hWnd
@@ -376,6 +383,18 @@ func (a *App) showPopupMenu() {
 		uintptr(MF_STRING),
 		ID_SETTINGS,
 		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("Параметры Bluetooth..."))),
+	)
+
+	// Notifications toggle
+	notifFlags := uint32(MF_STRING)
+	if a.cfg.IsNotificationsEnabled() {
+		notifFlags |= MF_CHECKED
+	}
+	procAppendMenu.Call(
+		hMenu,
+		uintptr(notifFlags),
+		ID_NOTIFS,
+		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("Всплывающие уведомления"))),
 	)
 
 	// Autostart toggle
@@ -479,6 +498,16 @@ func (a *App) handleMenuCommand(cmd int, devices []*bluetooth.Device) {
 			0,
 			1, // SW_SHOWNORMAL
 		)
+
+	case cmd == ID_NOTIFS:
+		newState := !a.cfg.IsNotificationsEnabled()
+		if err := a.cfg.SetNotificationsEnabled(newState); err != nil {
+			a.ShowNotification("ToothTray-go", fmt.Sprintf("Ошибка сохранения: %v", err), true)
+		} else {
+			if newState {
+				a.ShowNotification("ToothTray-go", "Уведомления включены", false)
+			}
+		}
 
 	case cmd == ID_AUTOSTART:
 		newState := !autostart.IsEnabled()
