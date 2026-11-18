@@ -1,7 +1,7 @@
 @echo off
 setlocal
 echo ========================================================
-echo Building ToothTray for Windows (GUI subsystem)
+echo Building ToothTray-go for Windows (GUI subsystem)
 echo ========================================================
 
 where rsrc >nul 2>&1
@@ -15,7 +15,7 @@ echo.
 echo [1/2] Compiling Windows x64 (amd64)...
 set GOOS=windows
 set GOARCH=amd64
-go build -ldflags="-H windowsgui -s -w" -o ToothTray.exe .
+go build -ldflags="-H windowsgui -s -w" -o ToothTray-go.exe .
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to build x64 binary!
     exit /b 1
@@ -25,7 +25,7 @@ echo.
 echo [2/2] Compiling Windows ARM64...
 set GOOS=windows
 set GOARCH=arm64
-go build -ldflags="-H windowsgui -s -w" -o ToothTray-arm64.exe .
+go build -ldflags="-H windowsgui -s -w" -o ToothTray-go-arm64.exe .
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to build ARM64 binary!
     exit /b 1
@@ -34,6 +34,6 @@ if %ERRORLEVEL% NEQ 0 (
 echo.
 echo ========================================================
 echo [OK] Both binaries built successfully!
-echo   - ToothTray.exe        (x64 / amd64)
-echo   - ToothTray-arm64.exe  (ARM64)
+echo   - ToothTray-go.exe        (x64 / amd64)
+echo   - ToothTray-go-arm64.exe  (ARM64)
 echo ========================================================

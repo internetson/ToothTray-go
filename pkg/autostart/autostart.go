@@ -10,10 +10,10 @@ import (
 
 const (
 	runKeyPath = `Software\Microsoft\Windows\CurrentVersion\Run`
-	appName    = "ToothTray"
+	appName    = "ToothTray-go"
 )
 
-// IsEnabled returns true if ToothTray is set to start on Windows boot.
+// IsEnabled returns true if ToothTray-go is set to start on Windows boot.
 func IsEnabled() bool {
 	k, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE)
 	if err != nil {

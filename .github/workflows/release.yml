@@ -46,17 +46,17 @@ jobs:
         run: |
           $env:GOOS = "windows"
           $env:GOARCH = "amd64"
-          go build -ldflags="-H windowsgui -s -w" -o ToothTray.exe .
+          go build -ldflags="-H windowsgui -s -w" -o ToothTray-go.exe .
 
       - name: Build Windows ARM64
         run: |
           $env:GOOS = "windows"
           $env:GOARCH = "arm64"
-          go build -ldflags="-H windowsgui -s -w" -o ToothTray-arm64.exe .
+          go build -ldflags="-H windowsgui -s -w" -o ToothTray-go-arm64.exe .
 
       - name: Generate Checksums
         run: |
-          Get-FileHash -Algorithm SHA256 ToothTray.exe, ToothTray-arm64.exe | ForEach-Object { "$($_.Hash)  $($_.Path | Split-Path -Leaf)" } | Out-File -Encoding ascii SHA256SUMS.txt
+          Get-FileHash -Algorithm SHA256 ToothTray-go.exe, ToothTray-go-arm64.exe | ForEach-Object { "$($_.Hash)  $($_.Path | Split-Path -Leaf)" } | Out-File -Encoding ascii SHA256SUMS.txt
           Write-Host "Generated SHA256SUMS.txt:"
           Get-Content SHA256SUMS.txt
 
@@ -64,10 +64,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
-          name: ToothTray ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: ToothTray-go ${{ github.event.inputs.tag_name || github.ref_name }}
           files: |
-            ToothTray.exe
-            ToothTray-arm64.exe
+            ToothTray-go.exe
+            ToothTray-go-arm64.exe
             SHA256SUMS.txt
           generate_release_notes: true
           draft: false

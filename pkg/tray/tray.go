@@ -160,7 +160,7 @@ func (a *App) Run() error {
 	// Load Icon
 	a.hIcon = a.loadAppIcon()
 
-	className := windows.StringToUTF16Ptr("ToothTrayHiddenWindowClass")
+	className := windows.StringToUTF16Ptr("ToothTrayGoHiddenWindowClass")
 	wc := WNDCLASSEXW{
 		CbSize:        uint32(unsafe.Sizeof(WNDCLASSEXW{})),
 		LpfnWndProc:   syscall.NewCallback(wndProc),
@@ -177,7 +177,7 @@ func (a *App) Run() error {
 	hwnd, _, err := procCreateWindowEx.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("ToothTray"))),
+		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("ToothTray-go"))),
 		0,
 		0, 0, 0, 0,
 		0,
@@ -262,7 +262,7 @@ func (a *App) addTrayIcon() error {
 	nid.UFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP
 	nid.UCallbackMessage = WM_TRAYICON
 	nid.HIcon = a.hIcon
-	copy(nid.SzTip[:], windows.StringToUTF16("ToothTray (Bluetooth)"))
+	copy(nid.SzTip[:], windows.StringToUTF16("ToothTray-go (Bluetooth)"))
 
 	ret, _, err := procShell_NotifyIcon.Call(NIM_ADD, uintptr(unsafe.Pointer(&nid)))
 	if ret == 0 {
@@ -432,15 +432,15 @@ func (a *App) handleMenuCommand(cmd int, devices []*bluetooth.Device) {
 		wasConnected := dev.Connected
 
 		if wasConnected {
-			a.ShowNotification("ToothTray", fmt.Sprintf("Отключение от %s...", dev.Name), false)
+			a.ShowNotification("ToothTray-go", fmt.Sprintf("Отключение от %s...", dev.Name), false)
 		} else {
-			a.ShowNotification("ToothTray", fmt.Sprintf("Подключение к %s...", dev.Name), false)
+			a.ShowNotification("ToothTray-go", fmt.Sprintf("Подключение к %s...", dev.Name), false)
 		}
 
 		go func() {
 			isNowConnected, err := a.btManager.ToggleConnection(dev)
 			if err != nil {
-				a.ShowNotification("ToothTray", fmt.Sprintf("Ошибка: %v", err), true)
+				a.ShowNotification("ToothTray-go", fmt.Sprintf("Ошибка: %v", err), true)
 				return
 			}
 
@@ -460,15 +460,15 @@ func (a *App) handleMenuCommand(cmd int, devices []*bluetooth.Device) {
 			}
 
 			if isNowConnected {
-				a.ShowNotification("ToothTray", fmt.Sprintf("Подключено к %s", dev.Name), false)
+				a.ShowNotification("ToothTray-go", fmt.Sprintf("Подключено к %s", dev.Name), false)
 			} else {
-				a.ShowNotification("ToothTray", fmt.Sprintf("Отключено от %s", dev.Name), false)
+				a.ShowNotification("ToothTray-go", fmt.Sprintf("Отключено от %s", dev.Name), false)
 			}
 		}()
 
 	case cmd == ID_REFRESH:
 		// Menu will refresh on next click, or show a subtle notification
-		a.ShowNotification("ToothTray", "Список устройств обновлен", false)
+		a.ShowNotification("ToothTray-go", "Список устройств обновлен", false)
 
 	case cmd == ID_SETTINGS:
 		procShellExecute.Call(
@@ -483,12 +483,12 @@ func (a *App) handleMenuCommand(cmd int, devices []*bluetooth.Device) {
 	case cmd == ID_AUTOSTART:
 		newState := !autostart.IsEnabled()
 		if err := autostart.SetEnabled(newState); err != nil {
-			a.ShowNotification("ToothTray", fmt.Sprintf("Ошибка автозагрузки: %v", err), true)
+			a.ShowNotification("ToothTray-go", fmt.Sprintf("Ошибка автозагрузки: %v", err), true)
 		} else {
 			if newState {
-				a.ShowNotification("ToothTray", "Автозагрузка включена", false)
+				a.ShowNotification("ToothTray-go", "Автозагрузка включена", false)
 			} else {
-				a.ShowNotification("ToothTray", "Автозагрузка отключена", false)
+				a.ShowNotification("ToothTray-go", "Автозагрузка отключена", false)
 			}
 		}
 

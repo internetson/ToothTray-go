@@ -16,7 +16,7 @@ var (
 )
 
 func main() {
-	mutexName := windows.StringToUTF16Ptr("Local\\ToothTray_SingleInstance_Mutex")
+	mutexName := windows.StringToUTF16Ptr("Local\\ToothTray-go_SingleInstance_Mutex")
 	hMutex, _, err := procCreateMutex.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
 	if hMutex == 0 {
 		log.Printf("Failed to create mutex: %v\n", err)
@@ -27,7 +27,7 @@ func main() {
 
 	app := tray.NewApp()
 	if err := app.Run(); err != nil {
-		log.Printf("ToothTray error: %v\n", err)
+		log.Printf("ToothTray-go error: %v\n", err)
 		os.Exit(1)
 	}
 }

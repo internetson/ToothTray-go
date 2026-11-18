@@ -1,7 +1,7 @@
 BSD 2-Clause License
 
 Copyright (c) 2023, Jing Xia (original C++ ToothTray: https://github.com/m2jean/ToothTray)
-Copyright (c) 2026, ToothTray-Go Contributors (https://github.com/internetson/ToothTray-go)
+Copyright (c) 2026, ToothTray-go Contributors (https://github.com/internetson/ToothTray-go)
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
