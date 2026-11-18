@@ -1,0 +1,6 @@
+*.syso binary
+*.syso linguist-vendored
+*.ico binary
+*.ico linguist-vendored
+*.png binary
+*.png linguist-vendored
