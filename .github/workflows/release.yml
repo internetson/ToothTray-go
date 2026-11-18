@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for release (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release (x64 and ARM64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          check-latest: true
+
+      - name: Run unit tests
+        run: |
+          go test -v ./...
+
+      - name: Install rsrc tool
+        run: |
+          go install github.com/akavel/rsrc@latest
+
+      - name: Compile Windows icon resources
+        run: |
+          rsrc -arch amd64 -ico ToothTray.ico -o rsrc_windows_amd64.syso
+          rsrc -arch arm64 -ico ToothTray.ico -o rsrc_windows_arm64.syso
+
+      - name: Build Windows x64 (amd64)
+        run: |
+          $env:GOOS = "windows"
+          $env:GOARCH = "amd64"
+          go build -ldflags="-H windowsgui -s -w" -o ToothTray.exe .
+
+      - name: Build Windows ARM64
+        run: |
+          $env:GOOS = "windows"
+          $env:GOARCH = "arm64"
+          go build -ldflags="-H windowsgui -s -w" -o ToothTray-arm64.exe .
+
+      - name: Generate Checksums
+        run: |
+          Get-FileHash -Algorithm SHA256 ToothTray.exe, ToothTray-arm64.exe | ForEach-Object { "$($_.Hash)  $($_.Path | Split-Path -Leaf)" } | Out-File -Encoding ascii SHA256SUMS.txt
+          Write-Host "Generated SHA256SUMS.txt:"
+          Get-Content SHA256SUMS.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: ToothTray ${{ github.event.inputs.tag_name || github.ref_name }}
+          files: |
+            ToothTray.exe
+            ToothTray-arm64.exe
+            SHA256SUMS.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
