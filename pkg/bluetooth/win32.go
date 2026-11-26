@@ -91,26 +91,13 @@ func EnumeratePairedDevices() ([]Win32DeviceInfo, error) {
 		name := syscall.UTF16ToString(devInfo.szName[:])
 		addrStr := fmt.Sprintf("%012X", devInfo.Address)
 
-		var numServices uint32 = 32
-		services := make([]windows.GUID, numServices)
-		ret, _, _ := procBluetoothEnumerateInstalledServices.Call(
-			0,
-			uintptr(unsafe.Pointer(&devInfo)),
-			uintptr(unsafe.Pointer(&numServices)),
-			uintptr(unsafe.Pointer(&services[0])),
-		)
-		var actualServices []windows.GUID
-		if ret == 0 {
-			actualServices = services[:numServices]
-		}
-
 		list = append(list, Win32DeviceInfo{
 			Name:       name,
 			Address:    devInfo.Address,
 			AddressStr: addrStr,
 			Connected:  devInfo.fConnected != 0,
 			RawInfo:    devInfo,
-			Services:   actualServices,
+			Services:   nil, // Services queried on-demand when toggling non-audio devices
 		})
 
 		devInfo.dwSize = uint32(unsafe.Sizeof(devInfo))
@@ -121,6 +108,22 @@ func EnumeratePairedDevices() ([]Win32DeviceInfo, error) {
 	}
 
 	return list, nil
+}
+
+// EnumerateDeviceServices queries the installed Bluetooth services for a specific device on demand.
+func EnumerateDeviceServices(rawInfo *BLUETOOTH_DEVICE_INFO) []windows.GUID {
+	var numServices uint32 = 32
+	services := make([]windows.GUID, numServices)
+	ret, _, _ := procBluetoothEnumerateInstalledServices.Call(
+		0,
+		uintptr(unsafe.Pointer(rawInfo)),
+		uintptr(unsafe.Pointer(&numServices)),
+		uintptr(unsafe.Pointer(&services[0])),
+	)
+	if ret == 0 && numServices > 0 {
+		return services[:numServices]
+	}
+	return nil
 }
 
 // SetServicesState toggles installed Bluetooth services on/off for non-audio or fallback devices.

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"runtime"
 	"unsafe"
 
 	"github.com/internetson/ToothTray-go/pkg/tray"
@@ -15,7 +16,17 @@ var (
 	procCreateMutex = kernel32.NewProc("CreateMutexW")
 )
 
+func init() {
+	// Lock the main goroutine to its OS thread immediately.
+	// This is critical for Win32 GUI / message loop applications in Go,
+	// ensuring the window and its message queue are never orphaned across
+	// Go scheduler migrations or PC sleep/resume cycles.
+	runtime.LockOSThread()
+}
+
 func main() {
+	runtime.LockOSThread()
+
 	mutexName := windows.StringToUTF16Ptr("Local\\ToothTray-go_SingleInstance_Mutex")
 	hMutex, _, err := procCreateMutex.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
 	if hMutex == 0 {

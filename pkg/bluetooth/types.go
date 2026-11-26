@@ -15,6 +15,7 @@ type Device struct {
 	IsAudio                bool
 	AudioEndpointDeviceIDs []string
 	ContainerID            windows.GUID
+	RawInfo                BLUETOOTH_DEVICE_INFO
 	Services               []windows.GUID
 }
 
