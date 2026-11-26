@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -20,74 +21,89 @@ var (
 	shell32  = windows.NewLazySystemDLL("shell32.dll")
 	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
 
-	procGetModuleHandle     = kernel32.NewProc("GetModuleHandleW")
-	procRegisterClassEx     = user32.NewProc("RegisterClassExW")
-	procCreateWindowEx      = user32.NewProc("CreateWindowExW")
-	procDefWindowProc       = user32.NewProc("DefWindowProcW")
-	procDestroyWindow       = user32.NewProc("DestroyWindow")
-	procPostQuitMessage     = user32.NewProc("PostQuitMessage")
-	procGetMessage          = user32.NewProc("GetMessageW")
-	procTranslateMessage    = user32.NewProc("TranslateMessage")
-	procDispatchMessage     = user32.NewProc("DispatchMessageW")
-	procPostMessage         = user32.NewProc("PostMessageW")
-	procLoadIcon            = user32.NewProc("LoadIconW")
-	procLoadImage           = user32.NewProc("LoadImageW")
-	procCreatePopupMenu     = user32.NewProc("CreatePopupMenu")
-	procAppendMenu          = user32.NewProc("AppendMenuW")
-	procDestroyMenu         = user32.NewProc("DestroyMenu")
-	procTrackPopupMenuEx    = user32.NewProc("TrackPopupMenuEx")
-	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
-	procGetCursorPos        = user32.NewProc("GetCursorPos")
+	procGetModuleHandle            = kernel32.NewProc("GetModuleHandleW")
+	procGetCurrentThreadId         = kernel32.NewProc("GetCurrentThreadId")
+	procRegisterClassEx            = user32.NewProc("RegisterClassExW")
+	procCreateWindowEx             = user32.NewProc("CreateWindowExW")
+	procDefWindowProc              = user32.NewProc("DefWindowProcW")
+	procDestroyWindow              = user32.NewProc("DestroyWindow")
+	procPostQuitMessage            = user32.NewProc("PostQuitMessage")
+	procGetMessage                 = user32.NewProc("GetMessageW")
+	procTranslateMessage           = user32.NewProc("TranslateMessage")
+	procDispatchMessage            = user32.NewProc("DispatchMessageW")
+	procPostMessage                = user32.NewProc("PostMessageW")
+	procLoadIcon                   = user32.NewProc("LoadIconW")
+	procLoadImage                  = user32.NewProc("LoadImageW")
+	procCreatePopupMenu            = user32.NewProc("CreatePopupMenu")
+	procAppendMenu                 = user32.NewProc("AppendMenuW")
+	procDestroyMenu                = user32.NewProc("DestroyMenu")
+	procTrackPopupMenuEx           = user32.NewProc("TrackPopupMenuEx")
+	procSetForegroundWindow        = user32.NewProc("SetForegroundWindow")
+	procGetForegroundWindow        = user32.NewProc("GetForegroundWindow")
+	procGetWindowThreadProcessId   = user32.NewProc("GetWindowThreadProcessId")
+	procAttachThreadInput          = user32.NewProc("AttachThreadInput")
+	procGetCursorPos               = user32.NewProc("GetCursorPos")
+	procRegisterWindowMessage      = user32.NewProc("RegisterWindowMessageW")
+	procChangeWindowMessageFilter  = user32.NewProc("ChangeWindowMessageFilter")
 
 	procShell_NotifyIcon = shell32.NewProc("Shell_NotifyIconW")
 	procShellExecute     = shell32.NewProc("ShellExecuteW")
 )
 
 const (
-	WM_NULL        = 0x0000
-	WM_DESTROY     = 0x0002
-	WM_COMMAND     = 0x0111
-	WM_USER        = 0x0400
-	WM_TRAYICON    = WM_USER + 1
-	WM_LBUTTONUP   = 0x0202
-	WM_RBUTTONUP   = 0x0205
-	WM_CONTEXTMENU = 0x007B
-	NIN_SELECT     = 0x0400
-	NIN_KEYSELECT  = 0x0401
+	WM_NULL          = 0x0000
+	WM_DESTROY       = 0x0002
+	WM_COMMAND       = 0x0111
+	WM_POWERBROADCAST = 0x0218
+	WM_USER          = 0x0400
+	WM_TRAYICON      = WM_USER + 1
+	WM_LBUTTONUP     = 0x0202
+	WM_RBUTTONUP     = 0x0205
+	WM_CONTEXTMENU   = 0x007B
+	NIN_SELECT       = 0x0400
+	NIN_KEYSELECT    = 0x0401
 
-	NIM_ADD        = 0x00000000
-	NIM_MODIFY     = 0x00000001
-	NIM_DELETE     = 0x00000002
-	NIF_MESSAGE    = 0x00000001
-	NIF_ICON       = 0x00000002
-	NIF_TIP        = 0x00000004
-	NIF_INFO       = 0x00000010
-	NIIF_NONE      = 0x00000000
-	NIIF_INFO      = 0x00000001
-	NIIF_WARNING   = 0x00000002
-	NIIF_ERROR     = 0x00000003
+	PBT_APMRESUMEAUTOMATIC = 0x0012
+	PBT_APMRESUMESUSPEND   = 0x0007
+	PBT_APMSUSPEND         = 0x0004
 
-	MF_STRING      = 0x00000000
-	MF_CHECKED     = 0x00000008
-	MF_UNCHECKED   = 0x00000000
-	MF_GRAYED      = 0x00000001
-	MF_DISABLED    = 0x00000002
-	MF_SEPARATOR   = 0x00000800
+	NIM_ADD          = 0x00000000
+	NIM_MODIFY       = 0x00000001
+	NIM_DELETE       = 0x00000002
+	NIM_SETVERSION   = 0x00000004
+	NOTIFYICON_VERSION_4 = 4
+	MSGFLT_ADD       = 1
 
-	TPM_RIGHTBUTTON = 0x0002
-	TPM_RETURNCMD   = 0x0100
+	NIF_MESSAGE      = 0x00000001
+	NIF_ICON         = 0x00000002
+	NIF_TIP          = 0x00000004
+	NIF_INFO         = 0x00000010
+	NIIF_NONE        = 0x00000000
+	NIIF_INFO        = 0x00000001
+	NIIF_WARNING     = 0x00000002
+	NIIF_ERROR       = 0x00000003
+
+	MF_STRING        = 0x00000000
+	MF_CHECKED       = 0x00000008
+	MF_UNCHECKED     = 0x00000000
+	MF_GRAYED        = 0x00000001
+	MF_DISABLED      = 0x00000002
+	MF_SEPARATOR     = 0x00000800
+
+	TPM_RIGHTBUTTON  = 0x0002
+	TPM_RETURNCMD    = 0x0100
 
 	IMAGE_ICON       = 1
 	LR_LOADFROMFILE  = 0x00000010
 	LR_DEFAULTSIZE   = 0x00000040
 	IDI_APPLICATION  = 32512
 
-	ID_DEVICE_BASE = 1000
-	ID_REFRESH     = 2001
-	ID_SETTINGS    = 2002
-	ID_NOTIFS      = 2003
-	ID_AUTOSTART   = 2004
-	ID_EXIT        = 2005
+	ID_DEVICE_BASE   = 1000
+	ID_REFRESH       = 2001
+	ID_SETTINGS      = 2002
+	ID_NOTIFS        = 2003
+	ID_AUTOSTART     = 2004
+	ID_EXIT          = 2005
 )
 
 type POINT struct {
@@ -139,11 +155,14 @@ type NOTIFYICONDATAW struct {
 }
 
 type App struct {
-	hWnd      windows.Handle
-	hInstance windows.Handle
-	hIcon     windows.Handle
-	btManager *bluetooth.Manager
-	cfg       *config.Config
+	hWnd              windows.Handle
+	hInstance         windows.Handle
+	hIcon             windows.Handle
+	btManager         *bluetooth.Manager
+	cfg               *config.Config
+	msgTaskbarCreated uint32
+	isMenuOpen        bool
+	menuMu            sync.Mutex
 }
 
 var globalApp *App
@@ -193,6 +212,17 @@ func (a *App) Run() error {
 		return fmt.Errorf("CreateWindowEx failed: %v", err)
 	}
 	a.hWnd = windows.Handle(hwnd)
+
+	// Register TaskbarCreated to restore icon if Explorer restarts or wakes from sleep
+	tbMsg, _, _ := procRegisterWindowMessage.Call(
+		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("TaskbarCreated"))),
+	)
+	a.msgTaskbarCreated = uint32(tbMsg)
+	if a.msgTaskbarCreated != 0 {
+		procChangeWindowMessageFilter.Call(uintptr(a.msgTaskbarCreated), uintptr(MSGFLT_ADD))
+	}
+	procChangeWindowMessageFilter.Call(uintptr(WM_TRAYICON), uintptr(MSGFLT_ADD))
+	procChangeWindowMessageFilter.Call(uintptr(WM_COMMAND), uintptr(MSGFLT_ADD))
 
 	// Add Tray Icon
 	if err := a.addTrayIcon(); err != nil {
@@ -270,9 +300,37 @@ func (a *App) addTrayIcon() error {
 
 	ret, _, err := procShell_NotifyIcon.Call(NIM_ADD, uintptr(unsafe.Pointer(&nid)))
 	if ret == 0 {
+		// If adding failed (e.g. icon already registered), try modifying
+		procShell_NotifyIcon.Call(NIM_MODIFY, uintptr(unsafe.Pointer(&nid)))
+	}
+
+	// Set NOTIFYICON_VERSION_4 for modern Windows notification behavior
+	nid.UTimeoutOrVersion = NOTIFYICON_VERSION_4
+	procShell_NotifyIcon.Call(NIM_SETVERSION, uintptr(unsafe.Pointer(&nid)))
+
+	if ret == 0 && err != nil && err != windows.ERROR_SUCCESS {
 		return fmt.Errorf("Shell_NotifyIcon NIM_ADD failed: %v", err)
 	}
 	return nil
+}
+
+func (a *App) reAddTrayIcon() {
+	var nid NOTIFYICONDATAW
+	nid.CbSize = uint32(unsafe.Sizeof(nid))
+	nid.HWnd = a.hWnd
+	nid.UID = 1
+	nid.UFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP
+	nid.UCallbackMessage = WM_TRAYICON
+	nid.HIcon = a.hIcon
+	copy(nid.SzTip[:], windows.StringToUTF16("ToothTray-go (Bluetooth)"))
+
+	ret, _, _ := procShell_NotifyIcon.Call(NIM_ADD, uintptr(unsafe.Pointer(&nid)))
+	if ret == 0 {
+		procShell_NotifyIcon.Call(NIM_MODIFY, uintptr(unsafe.Pointer(&nid)))
+	}
+
+	nid.UTimeoutOrVersion = NOTIFYICON_VERSION_4
+	procShell_NotifyIcon.Call(NIM_SETVERSION, uintptr(unsafe.Pointer(&nid)))
 }
 
 func (a *App) removeTrayIcon() {
@@ -305,6 +363,19 @@ func (a *App) ShowNotification(title, message string, isError bool) {
 }
 
 func wndProc(hWnd windows.Handle, msg uint32, wParam uintptr, lParam uintptr) uintptr {
+	if globalApp != nil && globalApp.msgTaskbarCreated != 0 && msg == globalApp.msgTaskbarCreated {
+		// Explorer restarted or taskbar reloaded (e.g. after sleep, wake, or crash)
+		globalApp.reAddTrayIcon()
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			if globalApp != nil {
+				globalApp.reAddTrayIcon()
+				globalApp.btManager.RefreshDevices()
+			}
+		}()
+		return 0
+	}
+
 	switch msg {
 	case WM_TRAYICON:
 		switch lParam {
@@ -314,6 +385,25 @@ func wndProc(hWnd windows.Handle, msg uint32, wParam uintptr, lParam uintptr) ui
 			}
 			return 0
 		}
+
+	case WM_POWERBROADCAST:
+		if wParam == PBT_APMRESUMEAUTOMATIC || wParam == PBT_APMRESUMESUSPEND {
+			// System resumed from sleep
+			go func() {
+				time.Sleep(500 * time.Millisecond)
+				if globalApp != nil {
+					globalApp.reAddTrayIcon()
+					globalApp.btManager.RefreshDevices()
+				}
+				time.Sleep(1500 * time.Millisecond)
+				if globalApp != nil {
+					globalApp.reAddTrayIcon()
+					globalApp.btManager.RefreshDevices()
+				}
+			}()
+		}
+		return 1
+
 	case WM_DESTROY:
 		procPostQuitMessage.Call(0)
 		return 0
@@ -323,14 +413,44 @@ func wndProc(hWnd windows.Handle, msg uint32, wParam uintptr, lParam uintptr) ui
 	return ret
 }
 
+func (a *App) forceForegroundWindow() {
+	curThread, _, _ := procGetCurrentThreadId.Call()
+	foreHwnd, _, _ := procGetForegroundWindow.Call()
+	var foreThread uintptr
+	if foreHwnd != 0 {
+		foreThread, _, _ = procGetWindowThreadProcessId.Call(foreHwnd, 0)
+	}
+	if foreThread != 0 && foreThread != curThread {
+		procAttachThreadInput.Call(curThread, foreThread, 1)
+		procSetForegroundWindow.Call(uintptr(a.hWnd))
+		procAttachThreadInput.Call(curThread, foreThread, 0)
+	} else {
+		procSetForegroundWindow.Call(uintptr(a.hWnd))
+	}
+}
+
 func (a *App) showPopupMenu() {
+	a.menuMu.Lock()
+	if a.isMenuOpen {
+		a.menuMu.Unlock()
+		return
+	}
+	a.isMenuOpen = true
+	a.menuMu.Unlock()
+
+	defer func() {
+		a.menuMu.Lock()
+		a.isMenuOpen = false
+		a.menuMu.Unlock()
+	}()
+
 	hMenu, _, _ := procCreatePopupMenu.Call()
 	if hMenu == 0 {
 		return
 	}
 	defer procDestroyMenu.Call(hMenu)
 
-	// Fetch paired devices
+	// Fetch paired devices (instant from cache, non-blocking)
 	devices, err := a.btManager.GetDevices()
 
 	if err != nil || len(devices) == 0 {
@@ -424,7 +544,7 @@ func (a *App) showPopupMenu() {
 	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
 
 	// Set foreground window before displaying popup menu so clicking outside closes it
-	procSetForegroundWindow.Call(uintptr(a.hWnd))
+	a.forceForegroundWindow()
 
 	cmd, _, _ := procTrackPopupMenuEx.Call(
 		hMenu,
@@ -486,8 +606,10 @@ func (a *App) handleMenuCommand(cmd int, devices []*bluetooth.Device) {
 		}()
 
 	case cmd == ID_REFRESH:
-		// Menu will refresh on next click, or show a subtle notification
-		a.ShowNotification("ToothTray-go", "Список устройств обновлен", false)
+		go func() {
+			_, _ = a.btManager.RefreshDevices()
+			a.ShowNotification("ToothTray-go", "Список устройств обновлен", false)
+		}()
 
 	case cmd == ID_SETTINGS:
 		procShellExecute.Call(
